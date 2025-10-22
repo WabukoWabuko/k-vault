@@ -20,7 +20,8 @@ const getDatabasePath = () => {
   return join(app.getPath('userData'), 'kvault.db');
 };
 
-function createWindow() {
+// Replace the createWindow function with this:
+async function createWindow() {
   console.log('📱 Creating main window...');
   
   mainWindow = new BrowserWindow({
@@ -30,19 +31,19 @@ function createWindow() {
       preload: join(__dirname, '../preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: true,
+      webSecurity: false, // Allow localhost in dev
     },
-    show: false, // Don't show until ready
-    titleBarStyle: 'hiddenInset', // Modern look
-    backgroundColor: '#1a1a1a', // Dark theme
+    show: false,
+    titleBarStyle: 'hiddenInset',
+    backgroundColor: '#1a1a1a',
   });
 
-  // Load renderer
   if (process.env.NODE_ENV === 'development') {
-    const rendererPort = process.argv[2];
-    await mainWindow.loadURL(`http://localhost:${rendererPort}`);
-    mainWindow.webContents.openDevTools(); // Debug mode
+    // Dev mode - load from vite dev server
+    await mainWindow.loadURL('http://localhost:5173');
+    mainWindow.webContents.openDevTools();
   } else {
+    // Production - load built files
     await mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
 
