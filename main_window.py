@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-K-Vault Main Window (Phase 6 - Drag & Drop Folders)
+K-Vault Main Window (Phase 6 - Drag & Drop Folders) - FIXED
 """
 from typing import Optional
 from PyQt6.QtWidgets import (QMainWindow, QSplitter, QTreeWidgetItem, QVBoxLayout, QWidget, 
-                             QHBoxLayout, QLineEdit, QMessageBox, QTreeWidget)
+                             QHBoxLayout, QLineEdit, QMessageBox)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
 import sys
@@ -70,13 +70,13 @@ class MainWindow(QMainWindow):
         self.sidebar.load_hierarchy()
     
     def connect_signals(self):
-        """Connect all signals"""
+        """Connect all signals - FIXED"""
+        # Sidebar signals
         self.sidebar.itemClicked.connect(self.on_item_clicked)
         self.sidebar.itemDoubleClicked.connect(self.on_item_double_clicked)
         self.sidebar.customContextMenuRequested.connect(self.on_context_menu)
-        self.sidebar.itemChanged.connect(self.on_item_renamed)
         
-        # Rich editor
+        # Rich editor signals
         self.markdown_editor.content_changed.connect(self.on_content_changed)
         self.markdown_editor.note_saved.connect(self.save_current_note)
         
@@ -102,27 +102,8 @@ class MainWindow(QMainWindow):
     
     def on_context_menu(self, position):
         """Show context menu"""
-        item = self.sidebar.itemAt(position)
-        if item:
-            self.sidebar.contextMenuEvent(self.sidebar.mapEventToParent(position))
-    
-    def on_item_renamed(self, item: QTreeWidgetItem, column: int):
-        """Handle rename completion"""
-        data = item.data(0, Qt.ItemDataRole.UserRole)
-        new_name = item.text(0).strip()
-        
-        if new_name and data:
-            try:
-                if data.startswith("note:"):
-                    note_id = int(data.split(":")[1])
-                    note = self.db_manager.get_note(note_id)
-                    if note:
-                        note.title = new_name.replace("📄 ", "").replace("  ", "")
-                        self.db_manager.update_note(note)
-                self.sidebar.load_hierarchy()
-                self.statusBar().showMessage(f"✅ Renamed: {new_name}")
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Rename failed: {str(e)}")
+        # Let FolderSidebar handle its own context menu
+        pass
     
     def load_note(self, note_id: int):
         """Load note into rich editor"""

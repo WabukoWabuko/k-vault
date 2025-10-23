@@ -123,25 +123,25 @@ class FolderSidebar(QTreeWidget):
         if current_item:
             self.editItem(current_item, 0)
     
-    def itemChanged(self, item: QTreeWidgetItem, column: int):
-        """Handle rename completion"""
-        data = item.data(0, Qt.ItemDataRole.UserRole)
-        new_name = item.text(0).strip()
-        
-        if new_name and data:
-            try:
-                if data.startswith("note:"):
-                    note_id = int(data.split(":")[1])
-                    note = self.db_manager.get_note(note_id)
-                    if note:
-                        note.title = new_name.replace("📄 ", "").replace("  ", "")
-                        self.db_manager.update_note(note)
-                
-                self.load_hierarchy()
-                self.item_renamed.emit(data, new_name)
-                
-            except Exception as e:
-                print(f"Rename error: {e}")
+        def itemChanged(self, item: QTreeWidgetItem, column: int):
+            """Handle rename completion - INTERNAL"""
+            data = item.data(0, Qt.ItemDataRole.UserRole)
+            new_name = item.text(0).strip()
+            
+            if new_name and data:
+                try:
+                    if data.startswith("note:"):
+                        note_id = int(data.split(":")[1])
+                        note = self.db_manager.get_note(note_id)
+                        if note:
+                            note.title = new_name.replace("📄 ", "").replace("  ", "")
+                            self.db_manager.update_note(note)
+                    
+                    self.load_hierarchy()
+                    print(f"✅ Renamed: {new_name}")  # Internal feedback
+                    
+                except Exception as e:
+                    print(f"Rename error: {e}")
     
     def delete_item(self, item: QTreeWidgetItem):
         """Delete item with confirmation"""
