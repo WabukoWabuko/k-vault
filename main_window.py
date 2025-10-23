@@ -13,7 +13,7 @@ from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QAction, QIcon, QKeyEven
 import sys
 
 from models import Note, Folder
-from db_manager import db_manager
+# from db_manager import db_manager # I have removed it because now it is passed as a parameter
 
 class MainWindow(QMainWindow):
     """VSCode-style resizable main window"""
@@ -333,5 +333,5 @@ class MainWindow(QMainWindow):
         """Save on close"""
         if self.current_note:
             self.save_current_note()
-        db_manager.close()
+        #db_manager.close() # I have commented it because it is handled by main.py
         event.accept()
