@@ -5,7 +5,7 @@ import path from 'path'
 export default defineConfig({
   plugins: [svelte()],
   root: 'src/renderer',
-  base: './',  // ✅ FIXED: Changed from '../' to './'
+  base: './',
   build: {
     outDir: '../dist/renderer',
     emptyOutDir: true
