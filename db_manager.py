@@ -238,4 +238,4 @@ class DatabaseManager:
             self._conn.close()
 
 # Global instance
-db_manager = DatabaseManager()
+#db_manager = DatabaseManager()

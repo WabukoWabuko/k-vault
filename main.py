@@ -88,9 +88,9 @@ def main():
     app.setOrganizationName("K-Vault Team")
     app.setStyle('Fusion')
     
-    # Create and show main window
+    # Create and show main window - PASS DATABASE!
     from main_window import MainWindow
-    window = MainWindow()
+    window = MainWindow(db_manager)  # ← PASS DB INSTANCE
     window.showMaximized()  # VSCode-style start
     
     print("🎉 PHASE 4 COMPLETE!")

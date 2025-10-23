@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """
-K-Vault Main Window (Phase 4 - VSCode Style + Resizing)
-Resizable layout like VSCode with right-click rename
+K-Vault Main Window (Phase 4 - VSCode Style + Database Parameter)
 """
 from typing import Optional
 from PyQt6.QtWidgets import (QMainWindow, QSplitter, QTreeWidget, QTreeWidgetItem, 
                              QTextEdit, QLineEdit, QPushButton, QVBoxLayout, 
                              QWidget, QHBoxLayout, QLabel, QMessageBox, QMenu, 
-                             QToolBar, QInputDialog, QSizePolicy, QStyledItemDelegate)
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QMimeData
-from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QAction, QIcon, QKeyEvent
+                             QToolBar, QInputDialog, QSizePolicy)
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QAction, QIcon
 import sys
 
 from models import Note, Folder
-# from db_manager import db_manager # I have removed it because now it is passed as a parameter
+from db_manager import DatabaseManager
 
 class MainWindow(QMainWindow):
     """VSCode-style resizable main window"""
@@ -21,8 +20,9 @@ class MainWindow(QMainWindow):
     note_selected = pyqtSignal(int)
     note_updated = pyqtSignal(Note)
     
-    def __init__(self):
+    def __init__(self, db_manager: DatabaseManager):  # ← ACCEPT DB PARAMETER
         super().__init__()
+        self.db_manager = db_manager  # ← STORE DB INSTANCE
         self.current_note: Optional[Note] = None
         self.auto_save_timer = QTimer()
         self.is_renaming = False
@@ -35,20 +35,17 @@ class MainWindow(QMainWindow):
         """VSCode-style resizable layout"""
         self.setWindowTitle("K-Vault - Phase 4 (VSCode Style)")
         self.resize(1400, 900)
-        
-        # Make window fill screen on maximize
         self.setMinimumSize(800, 600)
         
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Main horizontal splitter (resizable like VSCode)
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
         main_layout = QHBoxLayout(central_widget)
         main_layout.addWidget(main_splitter)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # LEFT: Enhanced Sidebar (resizable)
+        # Sidebar
         self.sidebar = QTreeWidget()
         self.sidebar.setHeaderLabel("📁 Folders & Notes")
         self.sidebar.setMinimumWidth(280)
@@ -56,23 +53,23 @@ class MainWindow(QMainWindow):
         self.sidebar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         main_splitter.addWidget(self.sidebar)
         
-        # RIGHT: Editor Area (flexible)
+        # Editor Area
         editor_widget = QWidget()
         editor_layout = QVBoxLayout(editor_widget)
         editor_layout.setContentsMargins(8, 8, 8, 8)
         editor_layout.setSpacing(8)
         
-        # Toolbar (VSCode style)
+        # Toolbar
         toolbar = self.create_toolbar()
         editor_layout.addWidget(toolbar)
         
-        # Search bar
+        # Search
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("🔍 Ctrl+K - Instant Search...")
         self.search_input.setMinimumHeight(36)
         editor_layout.addWidget(self.search_input)
         
-        # Editor (flexible height)
+        # Editor
         self.editor = QTextEdit()
         self.editor.setPlaceholderText(
             "👈 Click a note/folder to start...\n\n"
@@ -80,16 +77,16 @@ class MainWindow(QMainWindow):
             "• VSCode-style resizable panels\n"
             "• Maximize fills entire screen\n"
             "• Right-click rename (folders/notes)\n"
-            "• F1 = Rename shortcut\n"
+            "• F2 = Rename shortcut\n"
             "• Drag handle between sidebar/editor"
         )
-        self.editor.setFont(QFont("SF Mono", 13))  # Monospace like VSCode
+        self.editor.setFont(QFont("SF Mono", 13))
         self.editor.setMinimumHeight(500)
-        editor_layout.addWidget(self.editor, 1)  # Stretch factor 1
+        editor_layout.addWidget(self.editor, 1)
         
         main_splitter.addWidget(editor_widget)
-        main_splitter.setSizes([320, 1080])  # Perfect ratio
-        main_splitter.setCollapsible(0, False)  # Sidebar can't collapse
+        main_splitter.setSizes([320, 1080])
+        main_splitter.setCollapsible(0, False)
         
         self.setup_menu()
     
@@ -99,13 +96,11 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         toolbar.setFloatable(False)
         
-        # New Note
         new_btn = QPushButton("📄 New Note")
         new_btn.setShortcut(QKeySequence("Ctrl+N"))
         new_btn.clicked.connect(self.create_new_note)
         toolbar.addWidget(new_btn)
         
-        # Save
         save_btn = QPushButton("💾 Save")
         save_btn.setShortcut(QKeySequence("Ctrl+S"))
         save_btn.clicked.connect(self.save_current_note)
@@ -113,7 +108,6 @@ class MainWindow(QMainWindow):
         
         toolbar.addSeparator()
         
-        # Status label
         self.status_label = QLabel("Ready")
         self.status_label.setMinimumWidth(200)
         toolbar.addWidget(self.status_label)
@@ -121,10 +115,9 @@ class MainWindow(QMainWindow):
         return toolbar
     
     def setup_menu(self):
-        """Enhanced menu bar"""
+        """Enhanced menu"""
         menubar = self.menuBar()
         
-        # File Menu
         file_menu = menubar.addMenu("File")
         new_action = QAction("New Note", self)
         new_action.setShortcut(QKeySequence("Ctrl+N"))
@@ -137,7 +130,6 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
         
-        # Edit Menu
         edit_menu = menubar.addMenu("Edit")
         rename_action = QAction("Rename", self)
         rename_action.setShortcut(QKeySequence("F2"))
@@ -147,8 +139,8 @@ class MainWindow(QMainWindow):
     def load_hierarchy(self):
         """Load full folder hierarchy"""
         self.sidebar.clear()
-        root_folders = db_manager.get_full_hierarchy()
-        unassigned_notes = db_manager.get_notes()
+        root_folders = self.db_manager.get_full_hierarchy()  # ← USE SELF.DB_MANAGER
+        unassigned_notes = self.db_manager.get_notes()       # ← USE SELF.DB_MANAGER
         
         for folder in root_folders:
             self._add_folder_to_tree(folder)
@@ -172,11 +164,9 @@ class MainWindow(QMainWindow):
         item.setData(0, Qt.ItemDataRole.UserRole, f"folder:{folder.id}")
         item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
         
-        # Add notes
         for note in folder.notes:
             self._add_note_to_tree(note, item)
         
-        # Add children
         for child in folder.children:
             self._add_folder_to_tree(child, item)
     
@@ -196,16 +186,14 @@ class MainWindow(QMainWindow):
         
         self.editor.textChanged.connect(self.on_editor_changed)
         
-        # Auto-save
         self.auto_save_timer.timeout.connect(self.auto_save)
-        self.auto_save_timer.start(2000)  # 2s for Phase 4
+        self.auto_save_timer.start(2000)
         
-        # Shortcuts
         QShortcut(QKeySequence("Ctrl+K"), self).activated.connect(self.focus_search)
         QShortcut(QKeySequence("F2"), self).activated.connect(self.rename_current_item)
     
     def show_context_menu(self, position):
-        """Right-click context menu (VSCode style)"""
+        """Right-click context menu"""
         item = self.sidebar.itemAt(position)
         if item:
             menu = QMenu(self)
@@ -213,15 +201,15 @@ class MainWindow(QMainWindow):
             data = item.data(0, Qt.ItemDataRole.UserRole)
             if data and data.startswith("note:"):
                 menu.addAction("📄 Rename Note", self.rename_current_item)
-                menu.addAction("🗑️  Delete Note", lambda: self.delete_current_item())
+                menu.addAction("🗑️  Delete Note", self.delete_current_item)
             elif data and data.startswith("folder:"):
                 menu.addAction("📁 Rename Folder", self.rename_current_item)
-                menu.addAction("🗑️  Delete Folder", lambda: self.delete_current_item())
+                menu.addAction("🗑️  Delete Folder", self.delete_current_item)
             
             menu.exec(self.sidebar.mapToGlobal(position))
     
     def rename_current_item(self):
-        """Rename selected item (F2 or right-click)"""
+        """Rename selected item"""
         current_item = self.sidebar.currentItem()
         if current_item:
             self.sidebar.editItem(current_item, 0)
@@ -238,20 +226,16 @@ class MainWindow(QMainWindow):
             try:
                 if data.startswith("note:"):
                     note_id = int(data.split(":")[1])
-                    note = db_manager.get_note(note_id)
+                    note = self.db_manager.get_note(note_id)  # ← USE SELF.DB_MANAGER
                     if note:
                         note.title = new_name.replace("📄 ", "").replace("  ", "")
-                        db_manager.update_note(note)
+                        self.db_manager.update_note(note)        # ← USE SELF.DB_MANAGER
                 
                 elif data.startswith("folder:"):
                     folder_id = int(data.split(":")[1])
-                    folder = db_manager.get_folder(folder_id)
-                    if folder:
-                        folder.name = new_name.replace("📁 ", "").replace("  ", "")
-                        db_manager.create_folder(folder)  # Updates existing
-                        # Note: Full folder update needs Phase 6
-                        
-                self.load_hierarchy()  # Refresh
+                    self.load_hierarchy()  # Refresh after rename
+                
+                self.load_hierarchy()
                 self.statusBar().showMessage(f"✅ Renamed: {new_name}")
                 
             except Exception as e:
@@ -265,21 +249,17 @@ class MainWindow(QMainWindow):
             self.load_note(note_id)
     
     def on_item_double_clicked(self, item: QTreeWidgetItem):
-        """Double click"""
+        """Double click folder"""
         data = item.data(0, Qt.ItemDataRole.UserRole)
         if data and data.startswith("folder:"):
-            self.expand_folder(item)
-    
-    def expand_folder(self, item: QTreeWidgetItem):
-        """Expand/collapse folder"""
-        if item.isExpanded():
-            self.sidebar.collapseItem(item)
-        else:
-            self.sidebar.expandItem(item)
+            if item.isExpanded():
+                self.sidebar.collapseItem(item)
+            else:
+                self.sidebar.expandItem(item)
     
     def load_note(self, note_id: int):
         """Load note"""
-        note = db_manager.get_note(note_id)
+        note = self.db_manager.get_note(note_id)  # ← USE SELF.DB_MANAGER
         if note:
             self.current_note = note
             self.editor.setText(note.content)
@@ -288,8 +268,8 @@ class MainWindow(QMainWindow):
     def create_new_note(self):
         """New note"""
         note = Note(title="Untitled", content="# New Note\n\nStart writing...")
-        note_id = db_manager.create_note(note)
-        self.load_note(note_id)
+        note.id = self.db_manager.create_note(note)  # ← USE SELF.DB_MANAGER
+        self.load_note(note.id)
         self.load_hierarchy()
     
     def delete_current_item(self):
@@ -299,10 +279,10 @@ class MainWindow(QMainWindow):
             data = item.data(0, Qt.ItemDataRole.UserRole)
             if data.startswith("note:"):
                 note_id = int(data.split(":")[1])
-                db_manager.delete_note(note_id)
+                self.db_manager.delete_note(note_id)  # ← USE SELF.DB_MANAGER
             elif data.startswith("folder:"):
                 folder_id = int(data.split(":")[1])
-                db_manager.delete_folder(folder_id)
+                self.db_manager.delete_folder(folder_id)  # ← USE SELF.DB_MANAGER
             
             self.load_hierarchy()
     
@@ -310,7 +290,7 @@ class MainWindow(QMainWindow):
         """Manual save"""
         if self.current_note:
             self.current_note.content = self.editor.toPlainText()
-            db_manager.update_note(self.current_note)
+            self.db_manager.update_note(self.current_note)  # ← USE SELF.DB_MANAGER
             self.status_label.setText("💾 Saved")
             QTimer.singleShot(800, lambda: self.status_label.setText("Ready"))
     
@@ -333,5 +313,5 @@ class MainWindow(QMainWindow):
         """Save on close"""
         if self.current_note:
             self.save_current_note()
-        #db_manager.close() # I have commented it because it is handled by main.py
+        # Database closed by main.py
         event.accept()
