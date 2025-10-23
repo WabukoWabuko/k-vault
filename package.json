@@ -1,6 +1,7 @@
 {
   "name": "k-vault",
   "version": "1.0.0",
+  "type": "module",
   "description": "A Desktop application that will help in file arrangement, finding files easily and faster, finding specific words from documents to reduce perusing time.",
   "main": "dist/main/main.js",
   "scripts": {
