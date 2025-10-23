@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
 """
-K-Vault Rich Markdown Editor
+K-Vault Rich Markdown Editor (SIMPLIFIED - No Plugin Dependencies)
 Live preview with toolbar + formatting
 """
 import re
 from typing import Optional
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, 
-                             QPushButton, QComboBox, QLabel, QToolBar, QSizePolicy)
+                             QPushButton, QComboBox, QLabel, QToolBar)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont, QTextCursor, QTextCharFormat, QKeySequence
-import markdown_it
-from mdit_py_plugins import highlight, deflist, footnote
-from pygments import highlight as pygments_highlight
-from pygments.lexers import get_lexer_by_name
-from pygments.formatters import HtmlFormatter
+from PyQt6.QtGui import QFont, QTextCursor, QTextCharFormat
+import markdown
 
 class MarkdownEditor(QWidget):
     """Rich Markdown editor with live preview"""
@@ -23,19 +19,8 @@ class MarkdownEditor(QWidget):
     def __init__(self):
         super().__init__()
         self.preview_timer = QTimer()
-        self.setup_markdown_parser()
         self.setup_ui()
         self.connect_signals()
-    
-    def setup_markdown_parser(self):
-        """Setup advanced Markdown parser"""
-        self.md = markdown_it.MarkdownIt('commonmark')
-        self.md.use(highlight)
-        self.md.use(deflist)
-        self.md.use(footnote)
-        
-        # Custom link rendering for [[Note Title]]
-        self.link_pattern = re.compile(r'\[\[([^\]\|]+)\]\]')
     
     def setup_ui(self):
         """Split editor + preview layout"""
@@ -59,7 +44,7 @@ class MarkdownEditor(QWidget):
         self.editor.setPlaceholderText(
             "# Rich Markdown Editor 🎉\n\n"
             "**Features:**\n"
-            "- Live preview (bottom pane)\n"
+            "- Live preview (right pane)\n"
             "- Bold *italic* formatting\n"
             "- H1-H6 headings\n"
             "- Code blocks (```python)\n"
@@ -72,7 +57,7 @@ class MarkdownEditor(QWidget):
         
         layout.addWidget(editor_container, 1)
         
-        # Preview side (splitter style)
+        # Preview side
         preview_container = QWidget()
         preview_layout = QVBoxLayout(preview_container)
         preview_layout.setContentsMargins(12, 12, 12, 12)
@@ -96,8 +81,8 @@ class MarkdownEditor(QWidget):
         
         layout.addWidget(preview_container, 1)
         
-        # Update preview on start
-        self.preview_timer.start(500)  # 500ms debounce
+        # Start preview timer
+        self.preview_timer.start(500)
     
     def create_toolbar(self):
         """Rich editor toolbar"""
@@ -138,7 +123,7 @@ class MarkdownEditor(QWidget):
         
         toolbar.addSeparator()
         
-        # Actions
+        # Save
         save_btn = QPushButton("💾 Save")
         save_btn.clicked.connect(self.save_note)
         toolbar.addWidget(save_btn)
@@ -165,40 +150,76 @@ class MarkdownEditor(QWidget):
     
     def update_preview(self):
         """Render live HTML preview"""
-        markdown = self.get_content()
+        markdown_text = self.get_content()
         
-        # Convert wiki links to clickable
-        html = markdown
-        html = self.link_pattern.sub(r'<a href="#" class="wiki-link">\1</a>', html)
+        # Convert wiki links [[Note Title]] to HTML links
+        html = re.sub(r'\[\[([^\]\|]+)\]\]', r'<a href="#" class="wiki-link">\1</a>', markdown_text)
         
-        # Render markdown
+        # Render markdown to HTML
         try:
-            html = self.md.render(markdown)
-            # Basic CSS for preview
+            html = markdown.markdown(html, extensions=['tables', 'fenced_code', 'codehilite'])
+            
+            # Beautiful CSS
             css = """
             <style>
-                body { font-family: -apple-system, SF Pro, sans-serif; line-height: 1.6; color: #1f2937; }
-                h1 { font-size: 2em; font-weight: 700; margin: 1.5em 0 0.5em 0; }
-                h2 { font-size: 1.5em; font-weight: 600; margin: 1.2em 0 0.4em 0; }
+                body { 
+                    font-family: -apple-system, SF Pro, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                    line-height: 1.7; 
+                    color: #1f2937; 
+                    max-width: 100%;
+                }
+                h1 { font-size: 2em; font-weight: 700; margin: 1.5em 0 0.5em 0; color: #111827; }
+                h2 { font-size: 1.5em; font-weight: 600; margin: 1.2em 0 0.4em 0; color: #111827; }
                 h3 { font-size: 1.25em; font-weight: 600; margin: 1em 0 0.3em 0; }
-                code { background: #f3f4f6; padding: 0.2em 0.4em; border-radius: 4px; font-family: 'SF Mono', monospace; }
-                pre { background: #1f2937; color: #f9fafb; padding: 1em; border-radius: 6px; overflow-x: auto; }
-                .wiki-link { color: #3b82f6; text-decoration: none; font-weight: 500; }
-                .wiki-link:hover { text-decoration: underline; }
-                blockquote { border-left: 4px solid #e5e7eb; padding-left: 1em; margin: 1em 0; color: #6b7280; }
-                table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-                th, td { border: 1px solid #d1d5db; padding: 0.75em; text-align: left; }
-                th { background: #f9fafb; font-weight: 600; }
+                code { background: #f3f4f6; padding: 0.2em 0.4em; border-radius: 4px; font-family: 'SF Mono', monospace; font-size: 0.9em; }
+                pre { background: #1f2937; color: #f9fafb; padding: 1em; border-radius: 6px; overflow-x: auto; font-size: 0.9em; }
+                pre code { background: none; padding: 0; }
+                .wiki-link { 
+                    color: #3b82f6; 
+                    text-decoration: none; 
+                    font-weight: 500; 
+                    padding: 0.1em 0.2em;
+                    border-radius: 3px;
+                }
+                .wiki-link:hover { 
+                    background: #eff6ff; 
+                    text-decoration: underline; 
+                }
+                blockquote { 
+                    border-left: 4px solid #e5e7eb; 
+                    padding-left: 1em; 
+                    margin: 1em 0; 
+                    color: #6b7280; 
+                    font-style: italic;
+                }
+                table { 
+                    border-collapse: collapse; 
+                    width: 100%; 
+                    margin: 1em 0; 
+                    background: white;
+                }
+                th, td { 
+                    border: 1px solid #d1d5db; 
+                    padding: 0.75em; 
+                    text-align: left; 
+                }
+                th { 
+                    background: #f9fafb; 
+                    font-weight: 600; 
+                }
+                ul, ol { margin: 1em 0; padding-left: 2em; }
+                li { margin: 0.25em 0; }
             </style>
             """
             html = css + html
-        except:
-            html = f"<p><em>Preview error - {len(markdown)} chars</em></p>"
+            
+        except Exception as e:
+            html = f"<p><strong>Preview error:</strong> {str(e)}</p>"
         
         self.preview.setHtml(html)
-        self.content_changed.emit(markdown)
+        self.content_changed.emit(markdown_text)
     
-    # ===== FORMATTING =====
+    # ===== FORMATTING TOOLS =====
     def toggle_format(self, format_type: str):
         """Toggle bold/italic"""
         cursor = self.editor.textCursor()
@@ -221,11 +242,11 @@ class MarkdownEditor(QWidget):
         selected_text = cursor.selectedText()
         
         if selected_text:
-            heading = f"#{ ' #' * (int(level[1]) - 1) } {selected_text.strip()}\n\n"
+            heading = f"#{ '#' * (int(level[1]) - 1) } {selected_text.strip()}\n\n"
             cursor.removeSelectedText()
             cursor.insertText(heading)
         else:
-            cursor.insertText(f"#{ ' #' * (int(level[1]) - 1) } \n\n")
+            cursor.insertText(f"#{ '#' * (int(level[1]) - 1) } \n\n")
         
         self.editor.setTextCursor(cursor)
     
