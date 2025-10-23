@@ -144,6 +144,34 @@ class DatabaseManager:
             self._conn.execute("DELETE FROM folders WHERE id = ?", (folder_id,))
         self._conn.commit()
     
+        # ===== DRAG & DROP OPERATIONS =====
+    def move_note_to_folder(self, note_id: int, target_folder_id: Optional[int]):
+        """Move note to different folder"""
+        self._conn.execute(
+            "UPDATE notes SET folder_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (target_folder_id, note_id)
+        )
+        self._conn.commit()
+    
+    def move_folder(self, folder_id: int, target_parent_id: Optional[int]):
+        """Move folder to different parent"""
+        self._conn.execute(
+            "UPDATE folders SET parent_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (target_parent_id, folder_id)
+        )
+        self._conn.commit()
+    
+    def get_note_parents(self, note_id: int) -> List[int]:
+        """Get all parent folder IDs for a note"""
+        note = self.get_note(note_id)
+        parents = []
+        folder_id = note.folder_id
+        while folder_id:
+            parents.append(folder_id)
+            folder = self.get_folder(folder_id)
+            folder_id = folder.parent_id
+        return parents
+    
     # ===== NOTE OPERATIONS =====
     def create_note(self, note: Note) -> int:
         """Create note with model"""

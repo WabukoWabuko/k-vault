@@ -10,38 +10,41 @@ from models import Note, Folder
 from db_manager import DatabaseManager
 
 def create_sample_data(db: DatabaseManager):
-    """Phase 4 enhanced sample data"""
-    print("🗄️  Creating VSCode-style sample data...")
+    """Phase 6: Nested folder sample data"""
+    print("🗄️  Creating Phase 6 sample data...")
     
-    # Safe delete existing data
+    # Clear existing
     try:
         db._conn.execute("DELETE FROM notes")
         db._conn.execute("DELETE FROM folders")
         db._conn.commit()
-        print("🧹 Cleared existing data")
-    except Exception as e:
-        print(f"⚠️  Clear failed (ok for fresh DB): {e}")
+    except:
+        pass
     
-    # Create nested folders and notes
-    projects_folder = Folder(name="💻 Projects")
-    projects_id = db.create_folder(projects_folder)
+    # Create nested structure for drag/drop testing
+    projects = db.create_folder(Folder(name="💻 Projects"))
+    db.create_note(Note(title="Frontend", content="# Frontend Tasks\nDrag me!", folder_id=projects))
+    db.create_note(Note(title="Backend", content="# Backend API\nTry dragging!", folder_id=projects))
     
-    db.create_note(Note(
-        title="My First Project", 
-        content="# Project Notes\n\nStart here...\n\n**Phase 4 Features:**\n• Resizable panels\n• Right-click rename\n• F2 shortcut", 
-        folder_id=projects_id
-    ))
+    frontend = db.create_folder(Folder(name="🌐 Frontend", parent_id=projects))
+    db.create_note(Note(title="React Components", content="# React Components\nDouble-click folders!", folder_id=frontend))
     
-    docs_folder = Folder(name="📚 Docs")
-    docs_id = db.create_folder(docs_folder)
+    docs = db.create_folder(Folder(name="📚 Documentation"))
+    db.create_note(Note(title="Phase 6 Guide", content="""# Drag & Drop Guide 🎉
+
+## Features:
+• **Drag notes** between folders
+• **Drag folders** into other folders  
+• **Right-click** → New Folder
+• **F2** → Rename
+• **Right-click** → Delete
+
+## Try:
+1. Drag "Frontend" into "Projects"
+2. Right-click → New Folder
+3. Drag notes around! 👇""", folder_id=docs))
     
-    db.create_note(Note(
-        title="Getting Started", 
-        content="# Welcome to K-Vault! 🎉\n\n## VSCode-Style Features:\n\n• **Maximize** = Full screen\n• **Drag splitter** = Resize panels\n• **Right-click** = Rename/Delete\n• **F2** = Rename shortcut\n• **Double-click folders** = Expand", 
-        folder_id=docs_id
-    ))
-    
-    print("✅ 2 folders + 2 notes ready!")
+    print("✅ Nested folders + drag/drop samples ready!")
 
 def get_or_create_database() -> DatabaseManager:
     """Get healthy database or create fresh one"""
