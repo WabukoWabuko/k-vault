@@ -2,6 +2,7 @@
 """
 K-Vault Main Window (Phase 3 - Models Integration)
 """
+from typing import Optional
 from PyQt6.QtWidgets import (QMainWindow, QSplitter, QTreeWidget, QTreeWidgetItem, 
                              QTextEdit, QLineEdit, QPushButton, QVBoxLayout, 
                              QWidget, QHBoxLayout, QLabel, QMessageBox, QMenu)
