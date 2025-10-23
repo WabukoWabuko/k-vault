@@ -27,13 +27,17 @@ class DatabaseManager:
         self.init_schema()
     
     def connect(self):
-        """Connect with optimized settings"""
+        """Connect with optimized settings + integrity check"""
         self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row  # Dict-like rows
+        self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.execute("PRAGMA journal_mode = WAL")
         self._conn.execute("PRAGMA synchronous = NORMAL")
         self._conn.execute("PRAGMA cache_size = 10000")
+        
+        # Integrity check
+        if not self.integrity_check():
+            raise Exception("Database corrupted - will be recreated")
     
     def init_schema(self):
         """Enhanced schema with indexes"""
@@ -150,6 +154,14 @@ class DatabaseManager:
         note.id = cursor.lastrowid
         self._conn.commit()
         return note.id
+    
+    def integrity_check(self):
+        """Check database integrity"""
+        try:
+            self._conn.execute("PRAGMA integrity_check")
+            return True
+        except:
+            return False
     
     def get_note(self, note_id: int) -> Optional[Note]:
         """Get note by ID"""
