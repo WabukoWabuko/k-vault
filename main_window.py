@@ -3,8 +3,8 @@
 K-Vault Main Window (Phase 6 - Drag & Drop Folders)
 """
 from typing import Optional
-from PyQt6.QtWidgets import (QMainWindow, QSplitter, QVBoxLayout, QWidget, QHBoxLayout, 
-                             QLineEdit, QMessageBox)
+from PyQt6.QtWidgets import (QMainWindow, QSplitter, QTreeWidgetItem, QVBoxLayout, QWidget, 
+                             QHBoxLayout, QLineEdit, QMessageBox, QTreeWidget)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
 import sys
@@ -68,23 +68,13 @@ class MainWindow(QMainWindow):
     def load_content(self):
         """Load initial hierarchy"""
         self.sidebar.load_hierarchy()
-        
-    def on_item_clicked(self, item: QTreeWidgetItem):
-        """Load note when clicked"""
-        data = item.data(0, Qt.ItemDataRole.UserRole)
-        if data and data.startswith("note:"):
-            note_id = int(data.split(":")[1])
-            note = self.db_manager.get_note(note_id)
-            if note:
-                self.current_note = note
-                self.markdown_editor.set_content(note.content)
-                self.statusBar().showMessage(f"📄 {note.title} - Drag notes between folders!")
     
     def connect_signals(self):
         """Connect all signals"""
         self.sidebar.itemClicked.connect(self.on_item_clicked)
-        self.sidebar.item_renamed.connect(self.on_item_renamed)
-        self.sidebar.item_deleted.connect(self.on_item_deleted)
+        self.sidebar.itemDoubleClicked.connect(self.on_item_double_clicked)
+        self.sidebar.customContextMenuRequested.connect(self.on_context_menu)
+        self.sidebar.itemChanged.connect(self.on_item_renamed)
         
         # Rich editor
         self.markdown_editor.content_changed.connect(self.on_content_changed)
@@ -94,8 +84,48 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+K"), self).activated.connect(self.focus_search)
         QShortcut(QKeySequence("Ctrl+N"), self).activated.connect(self.create_new_note)
     
-    def on_note_selected(self, note_id: int):
-        """Load note when selected"""
+    def on_item_clicked(self, item: QTreeWidgetItem):
+        """Load note when clicked"""
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        if data and data.startswith("note:"):
+            note_id = int(data.split(":")[1])
+            self.load_note(note_id)
+    
+    def on_item_double_clicked(self, item: QTreeWidgetItem):
+        """Toggle folder expand/collapse"""
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        if data and data.startswith("folder:"):
+            if item.isExpanded():
+                self.sidebar.collapseItem(item)
+            else:
+                self.sidebar.expandItem(item)
+    
+    def on_context_menu(self, position):
+        """Show context menu"""
+        item = self.sidebar.itemAt(position)
+        if item:
+            self.sidebar.contextMenuEvent(self.sidebar.mapEventToParent(position))
+    
+    def on_item_renamed(self, item: QTreeWidgetItem, column: int):
+        """Handle rename completion"""
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        new_name = item.text(0).strip()
+        
+        if new_name and data:
+            try:
+                if data.startswith("note:"):
+                    note_id = int(data.split(":")[1])
+                    note = self.db_manager.get_note(note_id)
+                    if note:
+                        note.title = new_name.replace("📄 ", "").replace("  ", "")
+                        self.db_manager.update_note(note)
+                self.sidebar.load_hierarchy()
+                self.statusBar().showMessage(f"✅ Renamed: {new_name}")
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Rename failed: {str(e)}")
+    
+    def load_note(self, note_id: int):
+        """Load note into rich editor"""
         note = self.db_manager.get_note(note_id)
         if note:
             self.current_note = note
@@ -107,7 +137,7 @@ class MainWindow(QMainWindow):
         note = Note(title="Untitled", content="# New Note\n\nDrag me anywhere! 🎉")
         note.id = self.db_manager.create_note(note)
         self.sidebar.load_hierarchy()
-        self.on_note_selected(note.id)
+        self.load_note(note.id)
     
     def save_current_note(self):
         """Save current note"""
@@ -120,18 +150,6 @@ class MainWindow(QMainWindow):
         """Auto-save"""
         if self.current_note:
             QTimer.singleShot(2000, self.save_current_note)
-    
-    def on_item_renamed(self, item_data: str, new_name: str):
-        """Handle rename"""
-        self.statusBar().showMessage(f"✅ Renamed: {new_name}")
-    
-    def on_item_deleted(self, item_data: str):
-        """Handle delete"""
-        self.statusBar().showMessage("🗑️  Deleted")
-        if self.current_note:
-            note_id = self.current_note.id
-            self.current_note = None
-            self.markdown_editor.set_content("")
     
     def focus_search(self):
         """Focus search"""
