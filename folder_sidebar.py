@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-K-Vault Drag & Drop Folder Sidebar
+K-Vault Drag & Drop Folder Sidebar (FIXED)
 Full hierarchical drag/drop + context menu
 """
 from typing import Optional, List
@@ -95,6 +95,8 @@ class FolderSidebar(QTreeWidget):
                 menu.addAction("📁 New Folder", self.create_folder_dialog)
                 menu.addAction("📁 Rename Folder", self.rename_item)
                 menu.addAction("🗑️  Delete Folder", lambda: self.delete_item(item))
+            else:
+                menu.addAction("📁 New Folder", self.create_folder_dialog)
             
             menu.exec(event.globalPos())
     
@@ -160,27 +162,30 @@ class FolderSidebar(QTreeWidget):
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Delete failed: {str(e)}")
     
-    # ===== DRAG & DROP =====
+    # ===== DRAG & DROP (SIMPLIFIED) =====
     def dragEnterEvent(self, event: QDragEnterEvent):
         """Accept drag events"""
-        if event.mimeData().hasFormat("application/x-kvault-item"):
+        if event.mimeData().hasText():
             event.acceptProposedAction()
         else:
             event.ignore()
     
-    def dragMoveEvent(self, event: QDragMoveEvent):
+    def dragMoveEvent(self, event):
         """Handle drag over"""
         event.acceptProposedAction()
     
     def dropEvent(self, event: QDropEvent):
         """Handle drop"""
-        if event.mimeData().hasFormat("application/x-kvault-item"):
+        if event.mimeData().hasText():
             source_data = event.mimeData().text()
             target_item = self.itemAt(event.pos())
             
             if target_item and source_data:
                 self.handle_drop(source_data, target_item)
                 event.acceptProposedAction()
+            else:
+                event.ignore()
+        else:
             event.ignore()
     
     def startDrag(self, supportedActions):
@@ -200,21 +205,24 @@ class FolderSidebar(QTreeWidget):
         """Process drop operation"""
         target_data = target_item.data(0, Qt.ItemDataRole.UserRole)
         
-        if source_data.startswith("note:") and target_data.startswith("folder:"):
-            # Move note to folder
-            note_id = int(source_data.split(":")[1])
-            folder_id = int(target_data.split(":")[1])
-            self.db_manager.move_note_to_folder(note_id, folder_id)
+        try:
+            if source_data.startswith("note:") and target_data.startswith("folder:"):
+                # Move note to folder
+                note_id = int(source_data.split(":")[1])
+                folder_id = int(target_data.split(":")[1])
+                self.db_manager.move_note_to_folder(note_id, folder_id)
+                
+            elif source_data.startswith("folder:") and target_data.startswith("folder:"):
+                # Move folder to folder (as child)
+                source_folder_id = int(source_data.split(":")[1])
+                target_folder_id = int(target_data.split(":")[1])
+                self.db_manager.move_folder(source_folder_id, target_folder_id)
             
-        elif source_data.startswith("folder:") and target_data.startswith("folder:"):
-            # Move folder to folder (as child)
-            source_folder_id = int(source_data.split(":")[1])
-            target_folder_id = int(target_data.split(":")[1])
-            self.db_manager.move_folder(source_folder_id, target_folder_id)
-        
-        elif source_data.startswith("note:") and target_data == "root:unassigned":
-            # Move note to unassigned
-            note_id = int(source_data.split(":")[1])
-            self.db_manager.move_note_to_folder(note_id, None)
-        
-        self.load_hierarchy()
+            elif source_data.startswith("note:") and (target_data == "root:unassigned" or not target_data):
+                # Move note to unassigned
+                note_id = int(source_data.split(":")[1])
+                self.db_manager.move_note_to_folder(note_id, None)
+            
+            self.load_hierarchy()
+        except Exception as e:
+            print(f"Drop error: {e}")

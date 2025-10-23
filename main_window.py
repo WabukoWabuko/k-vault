@@ -68,10 +68,21 @@ class MainWindow(QMainWindow):
     def load_content(self):
         """Load initial hierarchy"""
         self.sidebar.load_hierarchy()
+        
+    def on_item_clicked(self, item: QTreeWidgetItem):
+        """Load note when clicked"""
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        if data and data.startswith("note:"):
+            note_id = int(data.split(":")[1])
+            note = self.db_manager.get_note(note_id)
+            if note:
+                self.current_note = note
+                self.markdown_editor.set_content(note.content)
+                self.statusBar().showMessage(f"📄 {note.title} - Drag notes between folders!")
     
     def connect_signals(self):
         """Connect all signals"""
-        self.sidebar.note_selected.connect(self.on_note_selected)
+        self.sidebar.itemClicked.connect(self.on_item_clicked)
         self.sidebar.item_renamed.connect(self.on_item_renamed)
         self.sidebar.item_deleted.connect(self.on_item_deleted)
         
