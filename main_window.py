@@ -2,6 +2,9 @@
 """
 K-Vault Main Window (Phase 6 - Drag & Drop Folders) - FIXED
 """
+
+from theme_manager import ThemeManager
+from settings_dialog import SettingsDialog
 from typing import Optional
 from PyQt6.QtWidgets import (QMainWindow, QSplitter, QTreeWidgetItem, QVBoxLayout, QWidget, 
                              QHBoxLayout, QLineEdit, QMessageBox)
