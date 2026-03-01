@@ -36,7 +36,7 @@
 ## 🚀 **Quick Start**
 ```bash
 # Clone & setup
-git clone https://github.com/YOURUSERNAME/k-vault.git
+git clone https://github.com/WabukoWabuko/k-vault.git
 cd k-vault
 
 # Activate environment (Windows)
